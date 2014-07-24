@@ -1,7 +1,7 @@
 Unattainium integration/staging tree
 ================================
 
-http://www.bitcoin.org
+http://www.Unattainium.org
 
 Copyright (c) 2009-2014 Unattainium Developers
 
