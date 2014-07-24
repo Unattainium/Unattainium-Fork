@@ -1,7 +1,7 @@
 Unattainium integration/staging tree
 ================================
 
-http://www.Unattainium.org
+http://www.unattainium.org
 
 Copyright (c) 2009-2014 Unattainium Developers
 
