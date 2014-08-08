@@ -68,6 +68,8 @@ public slots:
      @see WalletModel::EncryptionStatus
      */
     void setEncryptionStatus();
+    
+    void updatePlot(int count);
 };
 
 #endif // WALLETFRAME_H

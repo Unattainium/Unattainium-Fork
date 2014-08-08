@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>573</width>
-    <height>342</height>
+    <height>351</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -202,25 +202,25 @@
          </property>
         </spacer>
        </item>
-      <item>
-         <widget class="QLabel" name="coinimage">
-          <property name="text">
-           <string/>
-          </property>
-          <property name="pixmap">
-           <pixmap resource="../bitcoin.qrc">:/icons/bitcoin</pixmap>
-          </property>
-          <property name="scaledContents">
-           <bool>false</bool>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-          <property name="margin">
-           <number>-2</number>
-          </property>
-         </widget>
-        </item>
+       <item>
+        <widget class="QLabel" name="coinimage">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="pixmap">
+          <pixmap resource="../bitcoin.qrc">:/icons/bitcoin</pixmap>
+         </property>
+         <property name="scaledContents">
+          <bool>false</bool>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="margin">
+          <number>-2</number>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>
@@ -293,6 +293,23 @@
             </property>
            </widget>
           </item>
+          <item>
+           <widget class="Line" name="line">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCustomPlot" name="diffplot" native="true">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>200</height>
+             </size>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
@@ -315,6 +332,16 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <customwidgets>
+  <customwidget>
+   <class>QCustomPlot</class>
+   <extends>QWidget</extends>
+   <header>qcustomplot.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../bitcoin.qrc"/>
+ </resources>
  <connections/>
 </ui>

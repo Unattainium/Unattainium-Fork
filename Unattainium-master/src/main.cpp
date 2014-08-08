@@ -1071,14 +1071,19 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
     return pblock->GetHash();
 }
 
+#define HARDFORK_BLOCK 50
 int64 static GetBlockValue(int nHeight, int64 nFees)
 {
     int64 nSubsidy = 0.16 * COIN;
-
+    if (nHeight <= HARDFORK_BLOCK)
+        nSubsidy = 200 * COIN;
 
     return nSubsidy + nFees;
 }
 
+static const int64 nTargetTimespanORIG = 18000;
+static const int64 nTargetSpacingORIG = 9000;
+static const int64 nIntervalORIG = nTargetTimespanORIG / nTargetSpacingORIG;
 static const int64 nTargetTimespan = 32;
 static const int64 nTargetSpacing = 8;
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
@@ -1115,22 +1120,27 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     // Genesis block
     if (pindexLast == NULL)
         return nProofOfWorkLimit;
-
+        
+		bool fPastFork = (pindexLast->nHeight >= HARDFORK_BLOCK);
+		int64 lTargetTimespan = fPastFork ? nTargetTimespan : nTargetTimespanORIG;
+		int64 lTargetSpacing = fPastFork ? nTargetSpacing : nTargetSpacingORIG;
+		int64 lInterval = fPastFork ? nInterval : nIntervalORIG;		
+		
     // Only change once per interval
-    if ((pindexLast->nHeight+1) % nInterval != 0)
+    if ((pindexLast->nHeight+1) % lInterval != 0)
     {
         // Special difficulty rule for testnet:
         if (fTestNet)
         {
             // If the new block's timestamp is more than 2* 10 minutes
             // then allow mining of a min-difficulty block.
-            if (pblock->nTime > pindexLast->nTime + nTargetSpacing*2)
+            if (pblock->nTime > pindexLast->nTime + lTargetSpacing*2)
                 return nProofOfWorkLimit;
             else
             {
                 // Return the last non-special-min-difficulty-rules-block
                 const CBlockIndex* pindex = pindexLast;
-                while (pindex->pprev && pindex->nHeight % nInterval != 0 && pindex->nBits == nProofOfWorkLimit)
+                while (pindex->pprev && pindex->nHeight % lInterval != 0 && pindex->nBits == nProofOfWorkLimit)
                     pindex = pindex->pprev;
                 return pindex->nBits;
             }
@@ -1141,30 +1151,30 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     // Go back by what we want to be 14 days worth of blocks
     const CBlockIndex* pindexFirst = pindexLast;
-    for (int i = 0; pindexFirst && i < nInterval-1; i++)
+    for (int i = 0; pindexFirst && i < lInterval-1; i++)
         pindexFirst = pindexFirst->pprev;
     assert(pindexFirst);
 
     // Limit adjustment step
     int64 nActualTimespan = pindexLast->GetBlockTime() - pindexFirst->GetBlockTime();
     printf("  nActualTimespan = %"PRI64d"  before bounds\n", nActualTimespan);
-    if (nActualTimespan < nTargetTimespan/4)
-        nActualTimespan = nTargetTimespan/4;
-    if (nActualTimespan > nTargetTimespan*4)
-        nActualTimespan = nTargetTimespan*4;
+    if (nActualTimespan < lTargetTimespan/4)
+        nActualTimespan = lTargetTimespan/4;
+    if (nActualTimespan > lTargetTimespan*4)
+        nActualTimespan = lTargetTimespan*4;
 
     // Retarget
     CBigNum bnNew;
     bnNew.SetCompact(pindexLast->nBits);
     bnNew *= nActualTimespan;
-    bnNew /= nTargetTimespan;
+    bnNew /= lTargetTimespan;
 
     if (bnNew > bnProofOfWorkLimit)
         bnNew = bnProofOfWorkLimit;
 
     /// debug print
     printf("GetNextWorkRequired RETARGET\n");
-    printf("nTargetTimespan = %"PRI64d"    nActualTimespan = %"PRI64d"\n", nTargetTimespan, nActualTimespan);
+    printf("nTargetTimespan = %"PRI64d"    nActualTimespan = %"PRI64d"\n", lTargetTimespan, nActualTimespan);
     printf("Before: %08x  %s\n", pindexLast->nBits, CBigNum().SetCompact(pindexLast->nBits).getuint256().ToString().c_str());
     printf("After:  %08x  %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString().c_str());
 
