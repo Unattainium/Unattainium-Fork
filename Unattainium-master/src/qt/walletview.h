@@ -53,6 +53,8 @@ public:
 
     void showOutOfSyncWarning(bool fShow);
 
+    void updatePlot(int count);
+    
 private:
     BitcoinGUI *gui;
     ClientModel *clientModel;

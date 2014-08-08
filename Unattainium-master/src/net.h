@@ -8,7 +8,6 @@
 #include <deque>
 #include <boost/array.hpp>
 #include <boost/foreach.hpp>
-#include <openssl/rand.h>
 
 #ifndef WIN32
 #include <arpa/inet.h>
@@ -21,6 +20,8 @@
 #include "addrman.h"
 #include "hash.h"
 #include "bloom.h"
+
+#include <openssl/rand.h>
 
 class CNode;
 class CBlockIndex;
