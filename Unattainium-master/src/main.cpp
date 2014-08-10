@@ -14,6 +14,8 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
 
 using namespace std;
 using namespace boost;
@@ -72,7 +74,7 @@ int64 nHPSTimerStart = 0;
 // Settings
 int64 nTransactionFee = 0;
 
-
+long hex2long(const char* hexString);
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -1071,12 +1073,31 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
     return pblock->GetHash();
 }
 
-#define HARDFORK_BLOCK 50
-int64 static GetBlockValue(int nHeight, int64 nFees)
+#define HARDFORK1_BLOCK 50
+#define HARDFORK2_BLOCK 50000
+
+static int64 GenerateRandomInt(unsigned int s, int64 nMin, int64 nMax)
+{
+   random::mt19937 gen(s);
+   random::uniform_int_distribution<> dist(nMin, nMax);
+   return dist(gen);
+}
+
+int64 static GetBlockValue(int nHeight, int64 nFees, uint256 prevHash)
 {
     int64 nSubsidy = 0.16 * COIN;
-    if (nHeight <= HARDFORK_BLOCK)
+    
+    if (nHeight <= HARDFORK1_BLOCK)
         nSubsidy = 200 * COIN;
+        
+    if (nHeight >= HARDFORK2_BLOCK)
+    {
+       std::string cseed_str = prevHash.ToString().substr(7,7);
+       const char* cseed = cseed_str.c_str();
+       long seed = hex2long(cseed);
+       nSubsidy = (GenerateRandomInt(seed, 1, 100) * COIN) / 1000;
+       return nSubsidy;
+    }
 
     return nSubsidy + nFees;
 }
@@ -1121,7 +1142,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     if (pindexLast == NULL)
         return nProofOfWorkLimit;
         
-		bool fPastFork = (pindexLast->nHeight >= HARDFORK_BLOCK);
+		bool fPastFork = (pindexLast->nHeight >= HARDFORK1_BLOCK);
 		int64 lTargetTimespan = fPastFork ? nTargetTimespan : nTargetTimespanORIG;
 		int64 lTargetSpacing = fPastFork ? nTargetSpacing : nTargetSpacingORIG;
 		int64 lInterval = fPastFork ? nInterval : nIntervalORIG;		
@@ -1708,8 +1729,14 @@ bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsVi
     if (fBenchmark)
         printf("- Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin)\n", (unsigned)vtx.size(), 0.001 * nTime, 0.001 * nTime / vtx.size(), nInputs <= 1 ? 0 : 0.001 * nTime / (nInputs-1));
 
-    if (vtx[0].GetValueOut() > GetBlockValue(pindex->nHeight, nFees))
-        return state.DoS(100, error("ConnectBlock() : coinbase pays too much (actual=%"PRI64d" vs limit=%"PRI64d")", vtx[0].GetValueOut(), GetBlockValue(pindex->nHeight, nFees)));
+    uint256 prevHash = 0;
+    if (pindex->pprev)
+    {
+        prevHash = pindex->pprev->GetBlockHash();
+    }
+       
+    if (vtx[0].GetValueOut() > GetBlockValue(pindex->nHeight, nFees, prevHash))
+        return state.DoS(100, error("ConnectBlock() : coinbase pays too much (actual=%"PRI64d" vs limit=%"PRI64d")", vtx[0].GetValueOut(), GetBlockValue(pindex->nHeight, nFees, prevHash)));
 
     if (!control.Wait())
         return state.DoS(100, false);
@@ -3209,6 +3236,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             pfrom->fDisconnect = true;
             return false;
         }
+        if (nBestHeight >= HARDFORK2_BLOCK && pfrom->nVersion < 70002)
+        {
+            printf("partner %s using obsolete version %i; disconnecting\n", pfrom->addr.ToString().c_str(), pfrom->nVersion);
+            pfrom->fDisconnect = true;
+            return false;
+        }      
 
         if (pfrom->nVersion == 10300)
             pfrom->nVersion = 300;
@@ -4416,7 +4449,12 @@ CBlockTemplate* CreateNewBlock(CReserveKey& reservekey)
         nLastBlockSize = nBlockSize;
         printf("CreateNewBlock(): total size %"PRI64u"\n", nBlockSize);
 
-        pblock->vtx[0].vout[0].nValue = GetBlockValue(pindexPrev->nHeight+1, nFees);
+        uint256 prevHash = 0;
+        if (pindexPrev)
+        {
+            prevHash = pindexPrev->GetBlockHash();
+        }
+        pblock->vtx[0].vout[0].nValue = GetBlockValue(pindexPrev->nHeight+1, nFees, prevHash);
         pblocktemplate->vTxFees[0] = -nFees;
 
         // Fill in header
